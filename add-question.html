@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Add a question</title>
-    <link rel="stylesheet" href="navbar.css">
-    <link rel="stylesheet" href="general.css">
-    <link rel="stylesheet" href="cards.css">
+    <link rel="stylesheet" href="navbar.css" />
+    <link rel="stylesheet" href="general.css" />
+    <link rel="stylesheet" href="cards.css" />
   </head>
   <body>
     <ul class="topnav">
-      <li><a  href="index.html">Home</a></li>
+      <li><a href="index.html">Home</a></li>
       <li><a class="active" href="add-question.html">Add questions</a></li>
       <li><a href="make-a-quiz.html">Create a quiz</a></li>
       <li><a href="take-a-quiz.html">Take a quiz</a></li>
@@ -57,16 +57,38 @@
     </form>
 
     <div id="list" class="cards"></div>
-
+    <script src="configuration.js"></script>
     <script>
-      let host = "http://localhost:8080";
+      let host = getHost();
       let questions = [];
       displayTheQuestions();
 
       async function getAll() {
-        let response = await fetch(host + "/questions");
+        const headers = { Authorization: `Bearer ${configuration.token()}` };
+        let response = await fetch(host + "/questions", { headers });
         let result = await response.json();
+
+        if (response.status == 401) {
+          logout();
+        }
         return result;
+      }
+
+      async function getImage(id) {
+        const headers = { Authorization: `Bearer ${configuration.token()}` };
+        let response = await fetch(host + "/questions" + "/" + id + "/image", {
+          headers,
+        });
+        if (response.status === 401) {
+          logout();
+        }
+
+        const blob = await response.blob();
+        const imgUrl = URL.createObjectURL(blob);
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.style = "width:100%";
+        return img;
       }
 
       async function displayTheQuestions() {
@@ -78,11 +100,12 @@
         list.innerHTML = "";
 
         for (let question of questions) {
+          image = await getImage(question.id);
+
           let div = document.createElement("div");
           div.className = "card";
           let innerHtml = `
          
-        <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
         <div class="container">
           <h4><b>${question.id}</b></h4> 
           <p>${question.description}</p>
@@ -99,7 +122,8 @@
         </div>
      
             `;
-          div.innerHTML = innerHtml;
+          div.appendChild(image);
+          div.innerHTML += innerHtml;
           list.appendChild(div);
         }
       }
@@ -122,7 +146,7 @@
           case "C":
             question.answer = data.optionC;
             break;
-        }        
+        }
         addTheQuestion(question, data.imageFile);
       }
 
@@ -133,6 +157,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${configuration.token()}`,
           },
           body: JSON.stringify(question),
         };
